@@ -6,15 +6,15 @@ import (
 )
 
 func TestTokenize(t *testing.T) {
-	template := `<div id="con" data-count='data1-23' a13="abc" aaa="" data-13='true'> 5  5`
+	template := `<!DOCTYPE html SYSTEM 'about:legacy-compat'><div id="con" data-count='data1-23' a13="abc" aaa="" data-13='true'> 5 < 5 </div>`
 
 	for token := range Tokenize(template) {
 		switch token := token.(type) {
-		case *StartTag:
-			fmt.Println(token)
 		case *Illegal:
 			t.Error(token)
 			return
+		case *StartTag:
+			fmt.Println(token)
 		case *Text:
 			fmt.Println(token)
 		case *EndTag:

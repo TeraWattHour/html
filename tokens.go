@@ -10,6 +10,15 @@ type Location struct {
 	Cursor int
 }
 
+type Doctype struct {
+	HasSystem bool
+	Location
+}
+
+func (t *Doctype) Kind() string {
+	return "DOCTYPE"
+}
+
 type StartTag struct {
 	// Name must contain only letters, digits, hyphens, and colons, although it must start with a letter.
 	Name          string

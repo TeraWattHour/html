@@ -3,6 +3,7 @@ package html
 import (
 	"errors"
 	"iter"
+	"regexp"
 	"slices"
 	"unicode"
 )
@@ -27,7 +28,9 @@ type Tokenizer struct {
 }
 
 func (t *Tokenizer) next() Token {
-	if t.is('<') && t.peek() == '/' {
+	if t.match(regexp.MustCompile(`^(?i)<!DOCTYPE\s+`)) {
+		return t.doctype()
+	} else if t.is('<') && t.peek() == '/' {
 		return t.endTag()
 	} else if t.is('<') && isLetter(t.peek()) {
 		return t.startTag()
@@ -44,6 +47,37 @@ func (t *Tokenizer) next() Token {
 		string(t.template[textLocation.Cursor:t.i]),
 		textLocation,
 	}
+}
+
+// https://html.spec.whatwg.org/multipage/syntax.html#the-doctype
+func (t *Tokenizer) doctype() Token {
+	location := t.location()
+
+	for range len("<!DOCTYPE ") {
+		t.advance()
+	}
+
+	t.skipWhitespace()
+	if !t.match(regexp.MustCompile(`^(?i)html`)) {
+		return &Illegal{"expected `html` after `<!DOCTYPE `", t.location()}
+	}
+
+	for range len("html") {
+		t.advance()
+	}
+
+	t.skipWhitespace()
+	if t.match(regexp.MustCompile(`^SYSTEM\s+("about:legacy-compat"|'about:legacy-compat')\s*>`)) {
+		t.until('>')
+		t.advance()
+		return &Doctype{true, location}
+	}
+
+	if !t.consume('>') {
+		return &Illegal{"malformed DOCTYPE, expected closing angle bracket", t.location()}
+	}
+
+	return &Doctype{Location: location}
 }
 
 func (t *Tokenizer) startTag() Token {
@@ -200,6 +234,10 @@ func (t *Tokenizer) until(what rune, notAfter ...rune) string {
 		}
 	}
 	return string(t.template[start:t.i])
+}
+
+func (t *Tokenizer) match(pattern *regexp.Regexp) bool {
+	return pattern.MatchString(string(t.template[t.i:]))
 }
 
 func (t *Tokenizer) is(what ...rune) bool {
